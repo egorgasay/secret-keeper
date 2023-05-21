@@ -25,6 +25,8 @@ type SecretKeeperClient interface {
 	Auth(ctx context.Context, in *AuthRequest, opts ...grpc.CallOption) (*AuthResponse, error)
 	Register(ctx context.Context, in *RegisterRequest, opts ...grpc.CallOption) (*RegisterResponse, error)
 	Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error)
+	Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*DeleteResponse, error)
+	GetAllNames(ctx context.Context, in *GetAllNamesRequest, opts ...grpc.CallOption) (*GetAllNamesResponse, error)
 	Set(ctx context.Context, in *SetRequest, opts ...grpc.CallOption) (*SetResponse, error)
 }
 
@@ -63,6 +65,24 @@ func (c *secretKeeperClient) Get(ctx context.Context, in *GetRequest, opts ...gr
 	return out, nil
 }
 
+func (c *secretKeeperClient) Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*DeleteResponse, error) {
+	out := new(DeleteResponse)
+	err := c.cc.Invoke(ctx, "/api.SecretKeeper/Delete", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *secretKeeperClient) GetAllNames(ctx context.Context, in *GetAllNamesRequest, opts ...grpc.CallOption) (*GetAllNamesResponse, error) {
+	out := new(GetAllNamesResponse)
+	err := c.cc.Invoke(ctx, "/api.SecretKeeper/GetAllNames", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *secretKeeperClient) Set(ctx context.Context, in *SetRequest, opts ...grpc.CallOption) (*SetResponse, error) {
 	out := new(SetResponse)
 	err := c.cc.Invoke(ctx, "/api.SecretKeeper/Set", in, out, opts...)
@@ -79,6 +99,8 @@ type SecretKeeperServer interface {
 	Auth(context.Context, *AuthRequest) (*AuthResponse, error)
 	Register(context.Context, *RegisterRequest) (*RegisterResponse, error)
 	Get(context.Context, *GetRequest) (*GetResponse, error)
+	Delete(context.Context, *DeleteRequest) (*DeleteResponse, error)
+	GetAllNames(context.Context, *GetAllNamesRequest) (*GetAllNamesResponse, error)
 	Set(context.Context, *SetRequest) (*SetResponse, error)
 	mustEmbedUnimplementedSecretKeeperServer()
 }
@@ -95,6 +117,12 @@ func (UnimplementedSecretKeeperServer) Register(context.Context, *RegisterReques
 }
 func (UnimplementedSecretKeeperServer) Get(context.Context, *GetRequest) (*GetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
+}
+func (UnimplementedSecretKeeperServer) Delete(context.Context, *DeleteRequest) (*DeleteResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
+}
+func (UnimplementedSecretKeeperServer) GetAllNames(context.Context, *GetAllNamesRequest) (*GetAllNamesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAllNames not implemented")
 }
 func (UnimplementedSecretKeeperServer) Set(context.Context, *SetRequest) (*SetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Set not implemented")
@@ -166,6 +194,42 @@ func _SecretKeeper_Get_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SecretKeeper_Delete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SecretKeeperServer).Delete(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.SecretKeeper/Delete",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SecretKeeperServer).Delete(ctx, req.(*DeleteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SecretKeeper_GetAllNames_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAllNamesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SecretKeeperServer).GetAllNames(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.SecretKeeper/GetAllNames",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SecretKeeperServer).GetAllNames(ctx, req.(*GetAllNamesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _SecretKeeper_Set_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SetRequest)
 	if err := dec(in); err != nil {
@@ -202,6 +266,14 @@ var SecretKeeper_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Get",
 			Handler:    _SecretKeeper_Get_Handler,
+		},
+		{
+			MethodName: "Delete",
+			Handler:    _SecretKeeper_Delete_Handler,
+		},
+		{
+			MethodName: "GetAllNames",
+			Handler:    _SecretKeeper_GetAllNames_Handler,
 		},
 		{
 			MethodName: "Set",

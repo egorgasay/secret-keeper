@@ -8,6 +8,8 @@ service SecretKeeper {
   rpc Auth(AuthRequest) returns (AuthResponse) {}
   rpc Register(RegisterRequest) returns (RegisterResponse) {}
   rpc Get(GetRequest) returns (GetResponse) {}
+  rpc Delete(DeleteRequest) returns (DeleteResponse) {}
+  rpc GetAllNames(GetAllNamesRequest) returns (GetAllNamesResponse) {}
   rpc Set(SetRequest) returns (SetResponse) {}
 }
 
@@ -17,6 +19,18 @@ message GetRequest {
 
 message GetResponse {
   string value = 1;
+}
+
+message DeleteRequest {
+  string key = 1;
+}
+
+message DeleteResponse {}
+
+message GetAllNamesRequest {}
+
+message GetAllNamesResponse {
+  repeated string vars = 1;
 }
 
 message SetRequest {

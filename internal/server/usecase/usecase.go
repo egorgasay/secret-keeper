@@ -15,6 +15,8 @@ type IUseCase interface {
 	Set(ctx context.Context, key, value string) error
 	Auth(ctx context.Context, username string, password string) (string, error)
 	Register(ctx context.Context, username string, password string) (string, error)
+	GetAllNames(ctx context.Context) ([]string, error)
+	Delete(ctx context.Context, key string) error
 }
 
 var ErrInvalidToken = errors.New("invalid token")
@@ -30,13 +32,26 @@ func New(storage *storage.Storage) (*UseCase, error) {
 	}, nil
 }
 
+func (u *UseCase) GetAllNames(ctx context.Context) ([]string, error) {
+	username, err := u.getUsernameFromContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getFromContext: %w", err)
+	}
+
+	return u.storage.GetAllNames(ctx, username)
+}
+
 func (u *UseCase) Get(ctx context.Context, key string) (string, error) {
 	username, err := u.getUsernameFromContext(ctx)
 	if err != nil {
 		return "", fmt.Errorf("getFromContext: %w", err)
 	}
 
-	return u.storage.Get(ctx, username, key)
+	val, err := u.storage.Get(ctx, username, key)
+	if err != nil {
+		return "", fmt.Errorf("get: %w", err)
+	}
+	return val, nil
 }
 
 func (u *UseCase) Set(ctx context.Context, key, value string) error {
@@ -99,6 +114,15 @@ func (u *UseCase) Auth(ctx context.Context, username string, password string) (s
 	}
 
 	return token, nil
+}
+
+func (u *UseCase) Delete(ctx context.Context, key string) error {
+	username, err := u.getUsernameFromContext(ctx)
+	if err != nil {
+		return fmt.Errorf("getFromContext: %w", err)
+	}
+
+	return u.storage.Delete(ctx, username, key)
 }
 
 // validateToken validates token
