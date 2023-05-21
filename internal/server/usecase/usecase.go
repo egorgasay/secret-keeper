@@ -78,7 +78,7 @@ func (u *UseCase) Register(ctx context.Context, username string, password string
 
 	err = u.storage.AddUser(ctx, username, password)
 	if err != nil {
-		return "", fmt.Errorf("AddUser: %w", err)
+		return "", err
 	}
 
 	return token, nil

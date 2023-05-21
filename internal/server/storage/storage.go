@@ -133,8 +133,12 @@ func (s *Storage) AddUser(ctx context.Context, username string, password string)
 		return handleIndexError(err)
 	}
 
-	err = index.Set(ctx, "password", password, false)
+	err = index.Set(ctx, "password", password, true)
 	if err != nil {
+		if errors.Is(err, itisadb.ErrUniqueConstraint) {
+			return ErrAlreadyExists
+		}
+
 		if errors.Is(err, itisadb.ErrUnavailable) {
 			return ErrUnavailable
 		}
@@ -194,7 +198,7 @@ func (s *Storage) Delete(ctx context.Context, username string, key string) error
 		return handleIndexError(err)
 	}
 
-	err = index.Delete(ctx, key)
+	err = index.DeleteAttr(ctx, key)
 	if err != nil {
 		if errors.Is(err, itisadb.ErrNotFound) {
 			return ErrNotFound

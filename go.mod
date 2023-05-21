@@ -3,7 +3,7 @@ module secret-keeper
 go 1.19
 
 require (
-	github.com/egorgasay/itisadb-go-sdk v0.6.0
+	github.com/egorgasay/itisadb-go-sdk v0.7.0
 	github.com/google/uuid v1.3.0
 	google.golang.org/grpc v1.54.0
 )

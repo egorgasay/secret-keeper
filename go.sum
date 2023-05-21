@@ -18,6 +18,8 @@ github.com/egorgasay/itisadb-go-sdk v0.5.0 h1:B0Lib4RBxd+1wIwcdFBEDg2EnXhqQgZn4D
 github.com/egorgasay/itisadb-go-sdk v0.5.0/go.mod h1:Ag8EqifhTUeDRWlwHKquJayrNVqKhxYPkmfVPYALz38=
 github.com/egorgasay/itisadb-go-sdk v0.6.0 h1:e+0om300fUw1wK3eomf7p7sXOPcmURKpeeX+rmU02EU=
 github.com/egorgasay/itisadb-go-sdk v0.6.0/go.mod h1:Ag8EqifhTUeDRWlwHKquJayrNVqKhxYPkmfVPYALz38=
+github.com/egorgasay/itisadb-go-sdk v0.7.0 h1:3CnjU1pXmmDavURsMZoSzEx/zpURZSassHBd/ztJ7ss=
+github.com/egorgasay/itisadb-go-sdk v0.7.0/go.mod h1:Ag8EqifhTUeDRWlwHKquJayrNVqKhxYPkmfVPYALz38=
 github.com/erikgeiser/promptkit v0.8.0 h1:bvOzPs6RLyfRZDSgVWOghQEiBSRHQ3zmDdxcV8zOc+E=
 github.com/erikgeiser/promptkit v0.8.0/go.mod h1:QxyFbCrrj20PyvV5b+ckWPozbgX11s04GeRlmTCIMTo=
 github.com/golang/protobuf v1.5.0/go.mod h1:FsONVRAS9T7sI+LIUmWTfcYkHO4aIWwzhcaSAoJOfIk=

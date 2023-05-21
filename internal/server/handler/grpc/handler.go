@@ -33,6 +33,9 @@ func (h *Handler) Auth(ctx context.Context, req *server.AuthRequest) (*server.Au
 func (h *Handler) Register(ctx context.Context, req *server.RegisterRequest) (*server.RegisterResponse, error) {
 	_, err := h.logic.Register(ctx, req.GetUsername(), req.GetPassword())
 	if err != nil {
+		if errors.Is(err, storage.ErrAlreadyExists) {
+			return nil, status.Error(codes.AlreadyExists, err.Error())
+		}
 		return nil, err
 	}
 	return &server.RegisterResponse{}, nil // TODO: REMOVE TOKEN?

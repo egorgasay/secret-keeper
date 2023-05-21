@@ -6,30 +6,19 @@ import (
 	"fmt"
 	"github.com/erikgeiser/promptkit/selection"
 	"github.com/erikgeiser/promptkit/textinput"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/status"
 	"log"
-	"secret-keeper/pkg/api/server"
+	"secret-keeper/internal/client/usecase"
 	"strings"
 )
 
 type CLI struct {
-	cl server.SecretKeeperClient
+	logic *usecase.UseCase
 }
 
 var ErrExit = errors.New("exit")
 
-func New(addr string) (*CLI, error) {
-	c := &CLI{}
-	if err := c.connect(addr); err != nil {
-		return nil, fmt.Errorf("failed to connect: %w", err)
-	}
-
-	log.Println("Connected")
-	return c, nil
+func New(logic *usecase.UseCase) *CLI {
+	return &CLI{logic: logic}
 }
 
 func (c *CLI) Close() error {
@@ -42,7 +31,6 @@ const (
 	set  = "SET ▶️"
 	del  = "DELETE 🗑"
 	back = "BACK ⬅️"
-	web  = "WEBISTE 🕸"
 )
 
 var minCharacters = 8
@@ -51,14 +39,9 @@ const exit = "EXIT 🚪"
 const auth = "SIGN IN 👤"
 const reg = "SIGN UP 🆕"
 
-var ErrUnavailable = errors.New("service unavailable")
-
-func (c *CLI) Start(ctx context.Context) error {
-	var header metadata.MD // variable to store header and trailer
-	md := metadata.New(map[string]string{})
-	ctx = metadata.NewOutgoingContext(ctx, md)
-
-	if err := c.authenticate(ctx, &header); err != nil {
+func (c *CLI) Start(ctx context.Context) (err error) {
+	ctx, err = c.authenticate(ctx)
+	if err != nil {
 		if err == ErrExit {
 			return nil
 		}
@@ -67,13 +50,7 @@ func (c *CLI) Start(ctx context.Context) error {
 
 	fmt.Println("Authenticated")
 
-	tokens := header.Get("token")
-	if len(tokens) == 0 {
-		return fmt.Errorf("failed to get token")
-	}
-
-	token := tokens[0]
-	if err := c.operate(ctx, &header, token); err != nil {
+	if err := c.operate(ctx); err != nil {
 		if err == ErrExit {
 			return nil
 		}
@@ -83,14 +60,11 @@ func (c *CLI) Start(ctx context.Context) error {
 	return nil
 }
 
-func (c *CLI) operate(ctx context.Context, header *metadata.MD, token string) error {
-	md := metadata.New(map[string]string{"token": token})
-	ctx = metadata.NewOutgoingContext(ctx, md)
+func (c *CLI) operate(ctx context.Context) error {
 	sp := selection.New("Choose", []string{
 		get,
 		set,
 		del,
-		web,
 		exit})
 
 	for {
@@ -111,7 +85,7 @@ func (c *CLI) operate(ctx context.Context, header *metadata.MD, token string) er
 		case exit:
 			return nil
 		case get:
-			key, backToMenu, err := c.getOneFromList(ctx, header)
+			key, backToMenu, err := c.getOneFromList(ctx)
 			if err != nil {
 				return fmt.Errorf("failed to get from list: %w", err)
 			}
@@ -120,12 +94,12 @@ func (c *CLI) operate(ctx context.Context, header *metadata.MD, token string) er
 				continue
 			}
 
-			if r, err := c.cl.Get(ctx, &server.GetRequest{Key: strings.Trim(key, "\n\r")},
-				grpc.Header(header)); err != nil {
-				log.Printf("Failed to get: %v", err)
-			} else {
-				log.Printf("Value: %s", r.Value)
+			secret, err := c.logic.GetSecret(ctx, strings.Trim(key, "\n\r"))
+			if err != nil {
+				fmt.Printf("Failed to get: %v\n", err)
+				continue
 			}
+			fmt.Printf("Secret: %s\n", secret)
 		case set:
 			keyInput := textinput.New("Key:")
 			keyInput.Placeholder = fmt.Sprintf("name of your secret")
@@ -141,24 +115,13 @@ func (c *CLI) operate(ctx context.Context, header *metadata.MD, token string) er
 				return fmt.Errorf("failed to read password: %w", err)
 			}
 
-			_, err = c.cl.Set(ctx, &server.SetRequest{Key: strings.Trim(key, "\n\r"),
-				Value: strings.Trim(value, "\n\r")}, grpc.Header(header))
-			if err != nil {
-				st, ok := status.FromError(err)
-				if !ok {
-					log.Printf("Failed to set: %v", err)
-				} else {
-					if st.Code() == codes.Unavailable {
-						log.Printf("Failed to set: %v", ErrUnavailable)
-					} else {
-						log.Printf("Failed to set: %v", err)
-					}
-				}
+			if err = c.logic.SetSecret(ctx, strings.Trim(key, "\n\r"), strings.Trim(value, "\n\r")); err != nil {
+				log.Println(err)
 			} else {
 				log.Print("OK\n")
 			}
 		case del:
-			key, backToMenu, err := c.getOneFromList(ctx, header)
+			key, backToMenu, err := c.getOneFromList(ctx)
 			if err != nil {
 				return fmt.Errorf("failed to get from list: %w", err)
 			}
@@ -167,20 +130,8 @@ func (c *CLI) operate(ctx context.Context, header *metadata.MD, token string) er
 				continue
 			}
 
-			if _, err := c.cl.Delete(ctx, &server.DeleteRequest{Key: strings.Trim(key, "\n\r")},
-				grpc.Header(header)); err != nil {
-				st, ok := status.FromError(err)
-				if !ok {
-					log.Printf("Failed to delete: %v", err)
-				} else {
-					if st.Code() == codes.Unavailable {
-						log.Printf("Failed to delete: %v", ErrUnavailable)
-					} else if st.Code() == codes.NotFound {
-						log.Printf("Value not found: %v", key)
-					} else {
-						log.Printf("Failed to delete: %v", err)
-					}
-				}
+			if err = c.logic.DeleteSecret(ctx, strings.Trim(key, "\n\r")); err != nil {
+				log.Println(err)
 			} else {
 				log.Printf("Deleted: %s", key)
 			}
@@ -188,15 +139,15 @@ func (c *CLI) operate(ctx context.Context, header *metadata.MD, token string) er
 	}
 }
 
-func (c *CLI) getOneFromList(ctx context.Context, header *metadata.MD) (string, bool, error) {
-	getAllNames, err := c.cl.GetAllNames(ctx, &server.GetAllNamesRequest{}, grpc.Header(header))
+func (c *CLI) getOneFromList(ctx context.Context) (string, bool, error) {
+	keys, err := c.logic.GetAllNames(ctx)
 	if err != nil {
-		return "", false, fmt.Errorf("failed to get all: %w", err)
+		return "", false, err
 	}
 
-	var names = make([]string, 0, len(getAllNames.Vars)+1)
+	var names = make([]string, 0, len(keys)+1)
 	names = append(names, back)
-	names = append(names, getAllNames.Vars...)
+	names = append(names, keys...)
 
 	msg := "Choose secret"
 	if len(names) == 1 {
@@ -219,7 +170,7 @@ func (c *CLI) getOneFromList(ctx context.Context, header *metadata.MD) (string, 
 	return choice, false, nil
 }
 
-func (c *CLI) authenticate(ctx context.Context, header *metadata.MD) error {
+func (c *CLI) authenticate(ctx context.Context) (context.Context, error) {
 	authInput := selection.New("Choose", []string{
 		auth,
 		reg,
@@ -244,7 +195,7 @@ func (c *CLI) authenticate(ctx context.Context, header *metadata.MD) error {
 
 		choice, err := authInput.RunPrompt()
 		if err != nil {
-			return fmt.Errorf("failed to run prompt: %w", err)
+			return ctx, fmt.Errorf("failed to run prompt: %w", err)
 		}
 
 		cmd := strings.Trim(choice, "\n\r")
@@ -252,66 +203,51 @@ func (c *CLI) authenticate(ctx context.Context, header *metadata.MD) error {
 		case auth:
 			username, err := usernameInput.RunPrompt()
 			if err != nil {
-				return fmt.Errorf("failed to read username: %w", err)
+				return ctx, fmt.Errorf("failed to read username: %w", err)
 			}
 			username = strings.Trim(username, "\n\r")
 
 			password, err := passInput.RunPrompt()
 			if err != nil {
-				return fmt.Errorf("failed to read password: %w", err)
+				return ctx, fmt.Errorf("failed to read password: %w", err)
 			}
 
 			password = strings.Trim(password, "\n\r")
 
-			_, err = c.cl.Auth(ctx, &server.AuthRequest{Username: username, Password: password}, grpc.Header(header))
+			ctx, err = c.logic.Auth(ctx, username, password)
 			if err != nil {
-				st, ok := status.FromError(err)
-				if !ok {
-					return fmt.Errorf("failed to auth: %w", err)
-				}
-
-				if st.Code() == codes.Unavailable {
-					return ErrUnavailable
-				}
-
-				if st.Code() == codes.NotFound {
-					fmt.Printf("Wrong password or username! \n")
+				if errors.Is(err, usecase.ErrInvalidPassword) {
+					fmt.Println("Invalid password or username")
 					continue
 				}
-
-				return fmt.Errorf("failed to auth: %w", err)
+				return ctx, fmt.Errorf("failed to auth: %w", err)
 			}
-			return nil
+			return ctx, nil
+
 		case reg:
 			username, err := usernameInput.RunPrompt()
 			if err != nil {
-				return fmt.Errorf("failed to read username: %w", err)
+				return ctx, fmt.Errorf("failed to read username: %w", err)
 			}
 			username = strings.Trim(username, "\n\r")
 
 			password, err := passInput.RunPrompt()
 			if err != nil {
-				return fmt.Errorf("failed to read password: %w", err)
+				return ctx, fmt.Errorf("failed to read password: %w", err)
 			}
 			password = strings.Trim(password, "\n\r")
 
-			_, err = c.cl.Register(ctx, &server.RegisterRequest{Username: username, Password: password}, grpc.Header(header))
+			ctx, err = c.logic.Register(ctx, username, password)
 			if err != nil {
-				return fmt.Errorf("failed to auth: %w", err)
+				if errors.Is(err, usecase.ErrUsernameExists) {
+					fmt.Println("Username already exists")
+					continue
+				}
+				return ctx, fmt.Errorf("failed to register: %w", err)
 			}
-			return nil
+			return ctx, nil
 		case exit:
-			return ErrExit
+			return ctx, ErrExit
 		}
 	}
-}
-
-func (c *CLI) connect(addr string) error {
-	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return fmt.Errorf("failed to connect: %w", err)
-	}
-
-	c.cl = server.NewSecretKeeperClient(conn)
-	return nil
 }

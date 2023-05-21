@@ -25,7 +25,7 @@ func init() {
 
 const (
 	defaultHost = "127.0.0.1:8080"
-	defaultURI  = "127.0.0.1:8888"
+	defaultURI  = "127.0.0.1:800"
 )
 
 var defaults = map[string]string{
