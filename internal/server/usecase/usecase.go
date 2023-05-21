@@ -22,13 +22,17 @@ type IUseCase interface {
 var ErrInvalidToken = errors.New("invalid token")
 var ErrInvalidPassword = errors.New("invalid password")
 
+type getOrCreateFromContext func(ctx context.Context) (bool, string, error)
+
 type UseCase struct {
-	storage *storage.Storage
+	storage          *storage.Storage
+	getOrCreateToken getOrCreateFromContext
 }
 
 func New(storage *storage.Storage) (*UseCase, error) {
 	return &UseCase{
-		storage: storage,
+		storage:          storage,
+		getOrCreateToken: getOrCreateToken,
 	}, nil
 }
 
@@ -64,7 +68,7 @@ func (u *UseCase) Set(ctx context.Context, key, value string) error {
 }
 
 func (u *UseCase) Register(ctx context.Context, username string, password string) (string, error) {
-	ok, token, err := getOrCreateToken(ctx)
+	ok, token, err := u.getOrCreateToken(ctx)
 	if err != nil {
 		return "", fmt.Errorf("getOrCreateToken: %w", err)
 	}
@@ -72,20 +76,20 @@ func (u *UseCase) Register(ctx context.Context, username string, password string
 	if !ok {
 		err = u.storeToken(ctx, token, username)
 		if err != nil {
-			return "", fmt.Errorf("storeToken: %w", err)
+			return token, fmt.Errorf("storeToken: %w", err)
 		}
 	}
 
 	err = u.storage.AddUser(ctx, username, password)
 	if err != nil {
-		return "", err
+		return token, err
 	}
 
 	return token, nil
 }
 
 func (u *UseCase) Auth(ctx context.Context, username string, password string) (string, error) {
-	ok, token, err := getOrCreateToken(ctx)
+	ok, token, err := u.getOrCreateToken(ctx)
 	if err != nil {
 		return "", fmt.Errorf("getOrCreateToken: %w", err)
 	}
@@ -183,7 +187,7 @@ func getOrCreateToken(ctx context.Context) (ok bool, token string, err error) {
 }
 
 func (u *UseCase) getUsernameFromContext(ctx context.Context) (username string, err error) {
-	ok, token, err := getOrCreateToken(ctx)
+	ok, token, err := u.getOrCreateToken(ctx)
 	if err != nil {
 		return "", fmt.Errorf("getOrCreateToken: %w", err)
 	}

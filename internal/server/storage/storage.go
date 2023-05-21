@@ -97,7 +97,7 @@ func (s *Storage) Set(ctx context.Context, username, key, value string) error {
 }
 
 func (s *Storage) AddToken(ctx context.Context, token string, username string) error {
-	err := s.tokens.Set(ctx, token, username, true)
+	err := s.tokens.Set(ctx, token, username, false)
 	if err != nil {
 		if errors.Is(err, itisadb.ErrUniqueConstraint) {
 			return ErrAlreadyExists
