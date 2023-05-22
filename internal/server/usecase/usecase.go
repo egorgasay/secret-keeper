@@ -138,16 +138,6 @@ func (u *UseCase) validateToken(ctx context.Context, token string) (ok bool, err
 	return true, nil
 }
 
-// getUsername returns the username by provided token
-func (u *UseCase) getUsername(ctx context.Context, token string) (username string, err error) {
-	username, err = u.storage.GetUsername(ctx, token)
-	if err != nil {
-		// TODO: better error recognition?
-		return "", err
-	}
-	return username, nil
-}
-
 // storeToken stores token
 func (u *UseCase) storeToken(ctx context.Context, token, username string) error {
 	fmt.Println(token, username)
@@ -192,16 +182,13 @@ func (u *UseCase) getUsernameFromContext(ctx context.Context) (username string, 
 		return "", fmt.Errorf("getOrCreateToken: %w", err)
 	}
 
-	username, err = u.getUsername(ctx, token)
-	if err != nil {
-		return "", fmt.Errorf("getUsername: %w", err)
+	if !ok {
+		return "", fmt.Errorf("getOrCreateToken: %w", ErrInvalidToken)
 	}
 
-	if !ok {
-		err = u.storeToken(ctx, token, username)
-		if err != nil {
-			return "", fmt.Errorf("storeToken: %w", err)
-		}
+	username, err = u.storage.GetUsername(ctx, token)
+	if err != nil {
+		return "", fmt.Errorf("getUsername: %w", err)
 	}
 
 	return username, nil
