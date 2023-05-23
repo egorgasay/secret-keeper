@@ -44,8 +44,8 @@ func (h *Handler) Register(ctx context.Context, req *server.RegisterRequest) (*s
 func (h *Handler) Get(ctx context.Context, req *server.GetRequest) (*server.GetResponse, error) {
 	v, err := h.logic.Get(ctx, req.GetKey())
 	if err != nil {
-		if err == storage.ErrNotFound {
-
+		if errors.Is(err, storage.ErrNotFound) {
+			return nil, status.Error(codes.NotFound, err.Error())
 		}
 		return nil, err
 	}

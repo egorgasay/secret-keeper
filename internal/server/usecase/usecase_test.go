@@ -6,6 +6,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"secret-keeper/internal/server/storage"
+	"secret-keeper/pkg"
 	"testing"
 )
 
@@ -355,28 +356,11 @@ func TestUseCase_GetAllNames(t *testing.T) {
 				t.Errorf("GetAllNames() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !isTheSameArray(got, tt.want) {
+			if !pkg.IsTheSameArray(got, tt.want) {
 				t.Errorf("GetAllNames() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
-}
-
-func isTheSameArray(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-	var tmp = make(map[string]string, len(a))
-	for _, el := range a {
-		tmp[el] = el
-	}
-	for _, el := range b {
-		if _, ok := tmp[el]; !ok {
-			return false
-		}
-	}
-	return true
 }
 
 func TestUseCase_Register(t *testing.T) {

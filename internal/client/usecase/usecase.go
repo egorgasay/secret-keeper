@@ -16,6 +16,7 @@ import (
 var ErrUnavailable = errors.New("service unavailable")
 var ErrInvalidPassword = errors.New("Wrong password or username!")
 var ErrUsernameExists = errors.New("username exists")
+var ErrSecretNotFound = errors.New("secret exists")
 
 type UseCase struct {
 	cl     server.SecretKeeperClient
@@ -35,6 +36,16 @@ func New(addr string, header *metadata.MD) (*UseCase, error) {
 func (uc *UseCase) GetSecret(ctx context.Context, key string) (string, error) {
 	r, err := uc.cl.Get(ctx, &server.GetRequest{Key: key}, grpc.Header(uc.header))
 	if err != nil {
+		st, ok := status.FromError(err)
+		if !ok {
+			return "", fmt.Errorf("failed to get: %w", err)
+		}
+		if st.Code() == codes.Unavailable {
+			return "", ErrUnavailable
+		}
+		if st.Code() == codes.NotFound {
+			return "", ErrSecretNotFound
+		}
 		return "", err
 	}
 	return r.Value, nil
