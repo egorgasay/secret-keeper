@@ -29,17 +29,17 @@ func TestUseCase_Auth(t *testing.T) {
 		{
 			name: "success",
 			args: args{
-				ctx:      setHeader(context.Background()),
+				ctx:      setToken(context.Background(), "XXX-16tok"),
 				username: "XXX-16",
 				password: "XXX-16",
 			},
-			token: "XXX-16",
+			token: "XXX-16tok",
 		},
 
 		{
 			name: "success2",
 			args: args{
-				ctx:      setHeader(context.Background()),
+				ctx:      setToken(context.Background(), "qwerty"),
 				username: "admin3",
 				password: "tgfqdf",
 			},
@@ -49,7 +49,17 @@ func TestUseCase_Auth(t *testing.T) {
 		{
 			name: "error",
 			args: args{
-				ctx:      setHeader(context.Background()),
+				ctx:      setToken(context.Background(), ""),
+				username: "XX2424rt52dXXXX",
+				password: "XwdefwegfXXXXX",
+			},
+			wantErr: true,
+		},
+
+		{
+			name: "noToken",
+			args: args{
+				ctx:      context.Background(),
 				username: "XX2424rt52dXXXX",
 				password: "XwdefwegfXXXXX",
 			},
@@ -58,9 +68,7 @@ func TestUseCase_Auth(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := UseCase{storage: store, getOrCreateToken: func(ctx context.Context) (bool, string, error) {
-				return true, tt.token, nil
-			}}
+			u := UseCase{storage: store}
 
 			var token string
 			if !tt.wantErr {
@@ -69,8 +77,9 @@ func TestUseCase_Auth(t *testing.T) {
 					t.Error(err)
 				}
 
-				u.getOrCreateToken = func(ctx context.Context) (bool, string, error) {
-					return true, tt.token, nil
+				err := u.storage.AddToken(tt.args.ctx, token, tt.args.username)
+				if err != nil {
+					t.Error(err)
 				}
 			}
 			got, err := u.Auth(tt.args.ctx, tt.args.username, tt.args.password)
@@ -107,6 +116,12 @@ func (s streamerStub) SetTrailer(md metadata.MD) error {
 	panic("implement me")
 }
 
+func setToken(ctx context.Context, token string) context.Context {
+	md := metadata.New(map[string]string{"token": token})
+	ctx = metadata.NewIncomingContext(ctx, md)
+	return ctx
+}
+
 func setHeader(ctx context.Context) context.Context {
 	return grpc.NewContextWithServerTransportStream(ctx, &streamerStub{})
 }
@@ -132,34 +147,37 @@ func TestUseCase_Delete(t *testing.T) {
 		{
 			name: "success",
 			args: args{
-				ctx: setHeader(context.Background()),
+				ctx: setToken(context.Background(), "TestUseCase_Delete-163s"),
 				key: "XXX-16",
 			},
 			username: "qwdq",
 			password: "XXXX",
-			token:    "XXX-16",
+			token:    "TestUseCase_Delete-163s",
 		},
 		{
 			name: "err",
 			args: args{
-				ctx: setHeader(context.Background()),
+				ctx: setToken(context.Background(), "TestUseCase_Delete-164s"),
 				key: "XXX-32",
 			},
 			username: "qds",
 			password: "dwqd",
-			token:    "dqwd-16",
+			token:    "TestUseCase_Delete-164s",
 			wantErr:  true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := UseCase{storage: store, getOrCreateToken: func(ctx context.Context) (bool, string, error) {
-				return true, tt.token, nil
-			}}
+			u := UseCase{storage: store}
 
 			if !tt.wantErr {
 				if _, err = u.Register(tt.args.ctx, tt.username, tt.password); err != nil &&
 					!errors.Is(err, storage.ErrAlreadyExists) {
+					t.Error(err)
+				}
+
+				err := u.storage.AddToken(tt.args.ctx, tt.token, tt.username)
+				if err != nil {
 					t.Error(err)
 				}
 
@@ -203,18 +221,18 @@ func TestUseCase_Get(t *testing.T) {
 		{
 			name: "success",
 			args: args{
-				ctx: setHeader(context.Background()),
+				ctx: setToken(context.Background(), "TestUseCase_Get1"),
 				key: "XXX-16",
 			},
 			username: "qwdq",
 			password: "XXXX",
-			token:    "XXX-16",
+			token:    "TestUseCase_Get1",
 			want:     "qwdq",
 		},
 		{
 			name: "err",
 			args: args{
-				ctx: setHeader(context.Background()),
+				ctx: setToken(context.Background(), ""),
 				key: "XXX-32",
 			},
 			username: "qds",
@@ -225,13 +243,16 @@ func TestUseCase_Get(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := UseCase{storage: store, getOrCreateToken: func(ctx context.Context) (bool, string, error) {
-				return true, tt.token, nil
-			}}
+			u := UseCase{storage: store}
 
 			if !tt.wantErr {
 				if _, err = u.Register(tt.args.ctx, tt.username, tt.password); err != nil &&
 					!errors.Is(err, storage.ErrAlreadyExists) {
+					t.Error(err)
+				}
+
+				err := u.storage.AddToken(tt.args.ctx, tt.token, tt.username)
+				if err != nil {
 					t.Error(err)
 				}
 
@@ -274,11 +295,11 @@ func TestUseCase_GetAllNames(t *testing.T) {
 		{
 			name: "success",
 			args: args{
-				ctx: setHeader(context.Background()),
+				ctx: setToken(context.Background(), "TestUseCase_GetAllNames-1"),
 			},
 			username: "XXXX455",
 			password: "XXXX456",
-			token:    "XXX44-16",
+			token:    "TestUseCase_GetAllNames-1",
 			want: []string{
 				"333", "444", "XXX44",
 			},
@@ -287,30 +308,28 @@ func TestUseCase_GetAllNames(t *testing.T) {
 		{
 			name: "empty",
 			args: args{
-				ctx: setHeader(context.Background()),
+				ctx: setToken(context.Background(), "TestUseCase_GetAllNames-2"),
 			},
 			username: "XXXX4355",
 			password: "XXXX456",
-			token:    "X32XX44-16",
+			token:    "TestUseCase_GetAllNames-2",
 			want:     []string{},
 		},
 		{
 			name: "error",
 			args: args{
-				ctx: setHeader(context.Background()),
+				ctx: setToken(context.Background(), "TestUseCase_GetAllNames-3"),
 			},
 			username: "X244355",
 			password: "XXXX456",
-			token:    "X32XX42544-16",
+			token:    "TestUseCase_GetAllNames-3",
 			want:     []string{},
 			wantErr:  true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := UseCase{storage: store, getOrCreateToken: func(ctx context.Context) (bool, string, error) {
-				return false, tt.token, nil
-			}}
+			u := UseCase{storage: store}
 
 			if !tt.wantErr {
 				if _, err = u.Register(tt.args.ctx, tt.username, tt.password); err != nil &&
@@ -318,8 +337,9 @@ func TestUseCase_GetAllNames(t *testing.T) {
 					t.Error(err)
 				}
 
-				u.getOrCreateToken = func(ctx context.Context) (bool, string, error) {
-					return true, tt.token, nil
+				err = u.storage.AddToken(tt.args.ctx, tt.token, tt.username)
+				if err != nil {
+					t.Error(err)
 				}
 
 				for _, name := range tt.want {
@@ -378,36 +398,46 @@ func TestUseCase_Register(t *testing.T) {
 		{
 			name: "success",
 			args: args{
-				ctx:      setHeader(context.Background()),
+				ctx:      setToken(context.Background(), "TestUseCase_Register-1"),
 				username: "XXX-16",
 				password: "XXX-16",
 			},
-			token: "XXX-16",
+			token: "TestUseCase_Register-1",
 		},
 
 		{
 			name: "success2",
 			args: args{
-				ctx:      setHeader(context.Background()),
+				ctx:      setToken(context.Background(), "TestUseCase_Register-2"),
 				username: "admin3",
 				password: "tgfqdf",
 			},
-			token: "qwerty",
+			token: "TestUseCase_Register-2",
 		},
 
 		{
-			name: "error",
+			name: "alreadyExists",
 			args: args{
-				ctx: setHeader(context.Background()),
+				ctx:      setToken(context.Background(), "TestUseCase_Register-3"),
+				username: "admin3",
+				password: "XXXXXX",
+			},
+			token:   "TestUseCase_Register-3",
+			wantErr: true,
+		},
+		{
+			name: "noToken",
+			args: args{
+				ctx:      context.Background(),
+				username: "admin3",
+				password: "XXXXXX",
 			},
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := UseCase{storage: store, getOrCreateToken: func(ctx context.Context) (bool, string, error) {
-				return false, tt.token, nil
-			}}
+			u := UseCase{storage: store}
 
 			got, err := u.Register(tt.args.ctx, tt.args.username, tt.args.password)
 			if (err != nil) != tt.wantErr {
@@ -418,6 +448,11 @@ func TestUseCase_Register(t *testing.T) {
 			}
 
 			if !tt.wantErr {
+				err = u.storage.AddToken(tt.args.ctx, tt.token, tt.args.username)
+				if err != nil {
+					t.Error(err)
+				}
+
 				token, err := u.Auth(tt.args.ctx, tt.args.username, tt.args.password)
 				if err != nil {
 					t.Error(err)
@@ -451,47 +486,60 @@ func TestUseCase_Set(t *testing.T) {
 		{
 			name: "success",
 			args: args{
-				ctx:   setHeader(context.Background()),
+				ctx:   setToken(context.Background(), "TestUseCase_Set1"),
 				key:   "333",
 				value: "333",
 			},
 			username: "qwe",
 			password: "XXX",
-			token:    "3334",
+			token:    "TestUseCase_Set1",
 		},
 		{
 			name: "success2",
 			args: args{
-				ctx:   setHeader(context.Background()),
+				ctx:   setToken(context.Background(), "TestUseCase_Set2"),
 				key:   "343",
 				value: "343",
 			},
-			token: "333445",
+			token: "TestUseCase_Set2",
 		},
 		{
 			name: "alreadyExists",
 			args: args{
-				ctx:   setHeader(context.Background()),
+				ctx:   setToken(context.Background(), "TestUseCase_Set3"),
 				key:   "343",
 				value: "343",
 			},
-			token: "333445",
+			token: "TestUseCase_Set3",
+		},
+		{
+			name: "noToken",
+			args: args{
+				ctx:   context.Background(),
+				key:   "343",
+				value: "343",
+			},
+			token:   "TestUseCase_Set3",
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := UseCase{storage: store, getOrCreateToken: func(ctx context.Context) (bool, string, error) {
-				return true, tt.token, nil
-			}}
+			u := UseCase{storage: store}
 
 			if !tt.wantErr {
 				_, err := u.Register(tt.args.ctx, tt.username, tt.password)
 				if err != nil && !errors.Is(err, storage.ErrAlreadyExists) {
 					t.Error(err)
 				}
+
+				err = u.storage.AddToken(tt.args.ctx, tt.token, tt.username)
+				if err != nil {
+					t.Error(err)
+				}
 			}
 
-			if err := u.Set(tt.args.ctx, tt.args.key, tt.args.value); (err != nil) != tt.wantErr {
+			if err = u.Set(tt.args.ctx, tt.args.key, tt.args.value); (err != nil) != tt.wantErr {
 				t.Errorf("Set() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
@@ -527,43 +575,41 @@ func TestUseCase_getUsernameFromContext(t *testing.T) {
 		{
 			name: "success",
 			args: args{
-				ctx: setHeader(context.Background()),
+				ctx: setToken(context.Background(), "TestUseCase_getUsernameFromContext1"),
 			},
-			token:        "qwe",
+			token:        "TestUseCase_getUsernameFromContext1",
 			wantUsername: "XXX",
 		},
 		{
 			name: "success2",
 			args: args{
-				ctx: setHeader(context.Background()),
+				ctx: setToken(context.Background(), "TestUseCase_getUsernameFromContext2"),
 			},
-			token:        "gmkwetm234j2n3fjn2j3nr",
+			token:        "TestUseCase_getUsernameFromContext2",
 			wantUsername: "wefwmfkmwmf",
 		},
 		{
-			name: "noHeader",
+			name: "noToken",
 			args: args{
 				ctx: context.Background(),
 			},
-			token:        "fwe",
+			token:        "",
 			wantUsername: "efgwegw",
 			wantErr:      true,
 		},
 		{
 			name: "errorNotFound",
 			args: args{
-				ctx: context.Background(),
+				ctx: setToken(context.Background(), "TestUseCase_getUsernameFromContext3"),
 			},
-			token:        "qfwgqfe",
+			token:        "TestUseCase_getUsernameFromContext3",
 			wantUsername: "qwdqfdqfqf",
 			wantErr:      true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := UseCase{storage: store, getOrCreateToken: func(ctx context.Context) (bool, string, error) {
-				return true, tt.token, nil
-			}}
+			u := UseCase{storage: store}
 
 			if !tt.wantErr {
 				err := u.storage.AddToken(tt.args.ctx, tt.token, tt.wantUsername)
@@ -605,16 +651,16 @@ func TestUseCase_storeToken(t *testing.T) {
 		{
 			name: "success",
 			args: args{
-				ctx:      setHeader(context.Background()),
-				token:    "qwe",
+				ctx:      setHeader(setToken(context.Background(), "TestUseCase_storeToken1")),
+				token:    "TestUseCase_storeToken1",
 				username: "XXX",
 			},
 		},
 		{
 			name: "success2",
 			args: args{
-				ctx:      setHeader(context.Background()),
-				token:    "qwdqwfqdwwefwge",
+				ctx:      setHeader(setToken(context.Background(), "TestUseCase_storeToken2")),
+				token:    "TestUseCase_storeToken2",
 				username: "XXwwegfwggwefX",
 			},
 		},
@@ -622,7 +668,7 @@ func TestUseCase_storeToken(t *testing.T) {
 			name: "noHeader",
 			args: args{
 				ctx:      context.Background(),
-				token:    "qwdqwfqdwwefwge",
+				token:    "",
 				username: "XXwwegfwggwefX",
 			},
 			wantErr: true,
@@ -630,9 +676,15 @@ func TestUseCase_storeToken(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := UseCase{storage: store, getOrCreateToken: func(ctx context.Context) (bool, string, error) {
-				return true, tt.args.token, nil
-			}}
+			u := UseCase{storage: store}
+
+			if !tt.wantErr {
+				err = u.storage.AddToken(tt.args.ctx, tt.args.token, tt.args.username)
+				if err != nil {
+					t.Error(err)
+				}
+			}
+
 			if err = u.storeToken(tt.args.ctx, tt.args.token, tt.args.username); (err != nil) != tt.wantErr {
 				t.Errorf("storeToken() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -651,8 +703,9 @@ func TestUseCase_storeToken(t *testing.T) {
 }
 
 func TestUseCase_validateToken(t *testing.T) {
-	type fields struct {
-		storage *storage.Storage
+	store, err := storage.New(storage.Config{URI: ":800"})
+	if err != nil {
+		t.Fatal(err)
 	}
 	type args struct {
 		ctx   context.Context
@@ -660,17 +713,44 @@ func TestUseCase_validateToken(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		fields  fields
 		args    args
 		wantOk  bool
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "success",
+			args: args{
+				ctx:   setToken(context.Background(), "TestUseCase_validateToken1"),
+				token: "TestUseCase_validateToken1",
+			},
+			wantOk: true,
+		},
+		{
+			name: "success2",
+			args: args{
+				ctx:   setToken(context.Background(), "TestUseCase_validateToken2"),
+				token: "TestUseCase_validateToken2",
+			},
+			wantOk: true,
+		},
+		{
+			name: "notFound",
+			args: args{
+				ctx:   setHeader(setToken(context.Background(), "TestUseCase_validateToken2")),
+				token: "notFound",
+			},
+			wantOk:  false,
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := &UseCase{
-				storage: tt.fields.storage,
+			u := UseCase{storage: store}
+			if !tt.wantErr && tt.wantOk {
+				err := store.AddToken(tt.args.ctx, tt.args.token, "XXX")
+				if err != nil {
+					t.Error(err)
+				}
 			}
 			gotOk, err := u.validateToken(tt.args.ctx, tt.args.token)
 			if (err != nil) != tt.wantErr {
@@ -685,24 +765,16 @@ func TestUseCase_validateToken(t *testing.T) {
 }
 
 func Test_generateToken(t *testing.T) {
-	tests := []struct {
-		name    string
-		want    string
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := generateToken()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("generateToken() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("generateToken() got = %v, want %v", got, tt.want)
-			}
-		})
+	mp := make(map[string]struct{})
+	for i := 0; i < 10000; i++ {
+		token, err := generateToken()
+		if err != nil {
+			t.Error(err)
+		}
+		if _, ok := mp[token]; ok {
+			t.Error("duplicate token")
+		}
+		mp[token] = struct{}{}
 	}
 }
 
@@ -717,10 +789,44 @@ func Test_getOrCreateToken(t *testing.T) {
 		wantToken string
 		wantErr   bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "success",
+			args: args{
+				ctx: setToken(context.Background(), "Test_getOrCreateToken1"),
+			},
+			wantOk:    true,
+			wantToken: "Test_getOrCreateToken1",
+		},
+		{
+			name: "success2",
+			args: args{
+				ctx: setToken(context.Background(), "Test_getOrCreateToken2"),
+			},
+			wantOk:    true,
+			wantToken: "Test_getOrCreateToken2",
+		},
+		{
+			name: "noToken",
+			args: args{
+				ctx: context.Background(),
+			},
+			wantOk: false,
+		},
+		{
+			name: "noTokenInMetadata",
+			args: args{
+				ctx: metadata.NewIncomingContext(context.Background(), metadata.New(map[string]string{})),
+			},
+			wantOk: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.wantOk {
+				md := metadata.New(map[string]string{"token": tt.wantToken})
+				tt.args.ctx = metadata.NewIncomingContext(tt.args.ctx, md)
+			}
+
 			gotOk, gotToken, err := getOrCreateToken(tt.args.ctx)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("getOrCreateToken() error = %v, wantErr %v", err, tt.wantErr)
@@ -728,6 +834,10 @@ func Test_getOrCreateToken(t *testing.T) {
 			}
 			if gotOk != tt.wantOk {
 				t.Errorf("getOrCreateToken() gotOk = %v, want %v", gotOk, tt.wantOk)
+			}
+
+			if !tt.wantOk || err != nil {
+				return
 			}
 			if gotToken != tt.wantToken {
 				t.Errorf("getOrCreateToken() gotToken = %v, want %v", gotToken, tt.wantToken)
