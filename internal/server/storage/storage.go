@@ -3,7 +3,9 @@ package storage
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/egorgasay/itisadb-go-sdk"
+	"log"
 )
 
 type Storage struct {
@@ -60,6 +62,7 @@ func (s *Storage) Get(ctx context.Context, username, key string) (string, error)
 		if errors.Is(err, itisadb.ErrUnavailable) {
 			return "", ErrUnavailable
 		}
+		log.Println(fmt.Errorf("get(): %w", err))
 		// TODO: log error
 		return "", ErrUnknown
 	}

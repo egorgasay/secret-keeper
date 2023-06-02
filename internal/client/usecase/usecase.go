@@ -16,7 +16,7 @@ import (
 var ErrUnavailable = errors.New("service unavailable")
 var ErrInvalidPassword = errors.New("Wrong password or username!")
 var ErrUsernameExists = errors.New("username exists")
-var ErrSecretNotFound = errors.New("secret exists")
+var ErrSecretNotFound = errors.New("service not found")
 
 type UseCase struct {
 	cl     server.SecretKeeperClient
