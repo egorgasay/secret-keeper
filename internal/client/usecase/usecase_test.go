@@ -121,9 +121,8 @@ func TestUseCase_Auth(t *testing.T) {
 					return
 				}
 				tt.args.username = newUUID.String()
-				header.Set("key", tt.args.username)
 
-				tt.args.ctx, err = uc.Register(tt.args.ctx, tt.args.username, tt.args.password)
+				_, err = uc.Register(tt.args.ctx, tt.args.username, tt.args.password)
 				if err != nil && !errors.Is(err, ErrUsernameExists) {
 					t.Errorf("Register() error = %v, wantErr %v", err, tt.wantErr)
 				}
