@@ -24,7 +24,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to initialize storage: %v", err)
 	}
-	defer store.Close()
 
 	logic, err := usecase.New(store)
 	if err != nil {

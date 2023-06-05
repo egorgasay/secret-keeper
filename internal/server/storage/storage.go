@@ -5,18 +5,22 @@ import (
 	"errors"
 	"fmt"
 	"github.com/egorgasay/itisadb-go-sdk"
-	"log"
+	"secret-keeper/pkg"
 )
 
+// Storage for data
 type Storage struct {
 	users  *itisadb.Index
 	tokens *itisadb.Index
+	logger pkg.ILogger
 }
 
+// Config for storage
 type Config struct {
 	URI string
 }
 
+// New creates new storage
 func New(c Config) (*Storage, error) {
 	db, err := itisadb.New(c.URI)
 	if err != nil {
@@ -39,19 +43,23 @@ func New(c Config) (*Storage, error) {
 	}, nil
 }
 
+// ErrNotFound when value not found
 var ErrNotFound = errors.New("not found")
+
+// ErrUnavailable when storage is unavailable
 var ErrUnavailable = errors.New("unavailable")
+
+// ErrUnknown when unknown error
 var ErrUnknown = errors.New("unknown")
+
+// ErrAlreadyExists when something is already exists
 var ErrAlreadyExists = errors.New("already exists")
 
-func (s *Storage) Close() {
-	// TODO: close connection
-}
-
+// Get returns value by key
 func (s *Storage) Get(ctx context.Context, username, key string) (string, error) {
 	index, err := s.users.Index(ctx, username)
 	if err != nil {
-		return "", handleIndexError(err)
+		return "", s.handleIndexError(err)
 	}
 
 	v, err := index.Get(ctx, key)
@@ -62,14 +70,13 @@ func (s *Storage) Get(ctx context.Context, username, key string) (string, error)
 		if errors.Is(err, itisadb.ErrUnavailable) {
 			return "", ErrUnavailable
 		}
-		log.Println(fmt.Errorf("get(): %w", err))
-		// TODO: log error
+		s.logger.Warn(fmt.Errorf("Storage.Get(): %w", err).Error())
 		return "", ErrUnknown
 	}
 	return v, nil
 }
 
-func handleIndexError(err error) error {
+func (s *Storage) handleIndexError(err error) error {
 	if errors.Is(err, itisadb.ErrIndexNotFound) {
 		// TODO: log error
 		return ErrUnknown
@@ -77,14 +84,15 @@ func handleIndexError(err error) error {
 	if errors.Is(err, itisadb.ErrUnavailable) {
 		return ErrUnavailable
 	}
-	// TODO: log error
+	s.logger.Warn(err.Error())
 	return ErrUnknown
 }
 
+// Set adds k:v to storage
 func (s *Storage) Set(ctx context.Context, username, key, value string) error {
 	index, err := s.users.Index(ctx, username)
 	if err != nil {
-		return handleIndexError(err)
+		return s.handleIndexError(err)
 	}
 
 	err = index.Set(ctx, key, value, false)
@@ -93,12 +101,13 @@ func (s *Storage) Set(ctx context.Context, username, key, value string) error {
 			return ErrUnavailable
 		}
 
-		// TODO: log error
+		s.logger.Warn(err.Error())
 		return ErrUnknown
 	}
 	return nil
 }
 
+// AddToken adds token to storage
 func (s *Storage) AddToken(ctx context.Context, token string, username string) error {
 	err := s.tokens.Set(ctx, token, username, false)
 	if err != nil {
@@ -108,12 +117,13 @@ func (s *Storage) AddToken(ctx context.Context, token string, username string) e
 		if errors.Is(err, itisadb.ErrUnavailable) {
 			return ErrUnavailable
 		}
-		// TODO: log error
+		s.logger.Warn(fmt.Errorf("Storage.AddToken(): %w", err).Error())
 		return ErrUnknown
 	}
 	return nil
 }
 
+// GetUsername returns username of token
 func (s *Storage) GetUsername(ctx context.Context, token string) (string, error) {
 	username, err := s.tokens.Get(ctx, token)
 	if err != nil {
@@ -124,16 +134,17 @@ func (s *Storage) GetUsername(ctx context.Context, token string) (string, error)
 			return "", ErrUnavailable
 		}
 
-		// TODO: log error
+		s.logger.Warn(fmt.Errorf("Storage.GetUsername(): %w", err).Error())
 		return "", ErrUnknown
 	}
 	return username, nil
 }
 
+// AddUser adds user to storage
 func (s *Storage) AddUser(ctx context.Context, username string, password string) error {
 	index, err := s.users.Index(ctx, username)
 	if err != nil {
-		return handleIndexError(err)
+		return s.handleIndexError(err)
 	}
 
 	err = index.Set(ctx, "password", password, true)
@@ -146,16 +157,17 @@ func (s *Storage) AddUser(ctx context.Context, username string, password string)
 			return ErrUnavailable
 		}
 
-		// TODO: log error
+		s.logger.Warn(fmt.Errorf("Storage.AddUser(): %w", err).Error())
 		return ErrUnknown
 	}
 	return nil
 }
 
+// GetPassword returns password of user
 func (s *Storage) GetPassword(ctx context.Context, username string) (string, error) {
 	index, err := s.users.Index(ctx, username)
 	if err != nil {
-		return "", handleIndexError(err)
+		return "", s.handleIndexError(err)
 	}
 
 	val, err := index.Get(ctx, "password")
@@ -167,12 +179,13 @@ func (s *Storage) GetPassword(ctx context.Context, username string) (string, err
 			return "", ErrUnavailable
 		}
 
-		// TODO: log error
+		s.logger.Warn(fmt.Errorf("Storage.GetPassword(): %w", err).Error())
 		return "", ErrUnknown
 	}
 	return val, nil
 }
 
+// GetAllNames returns all names of user
 func (s *Storage) GetAllNames(ctx context.Context, username string) ([]string, error) {
 	index, err := s.users.Index(ctx, username)
 	if err != nil {
@@ -181,7 +194,7 @@ func (s *Storage) GetAllNames(ctx context.Context, username string) ([]string, e
 
 	keyValues, err := index.GetIndex(ctx)
 	if err != nil {
-		return nil, handleIndexError(err)
+		return nil, s.handleIndexError(err)
 	}
 
 	var names []string
@@ -195,10 +208,11 @@ func (s *Storage) GetAllNames(ctx context.Context, username string) ([]string, e
 	return names, nil
 }
 
+// Delete deletes key from index
 func (s *Storage) Delete(ctx context.Context, username string, key string) error {
 	index, err := s.users.Index(ctx, username)
 	if err != nil {
-		return handleIndexError(err)
+		return s.handleIndexError(err)
 	}
 
 	err = index.DeleteAttr(ctx, key)
@@ -209,6 +223,7 @@ func (s *Storage) Delete(ctx context.Context, username string, key string) error
 		if errors.Is(err, itisadb.ErrUnavailable) {
 			return ErrUnavailable
 		}
+		s.logger.Warn(fmt.Errorf("Storage.Delete(): %w", err).Error())
 
 		return err
 	}

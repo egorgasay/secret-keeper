@@ -11,19 +11,17 @@ import (
 	"strings"
 )
 
+// CLI is the command line interface
 type CLI struct {
 	logic *usecase.UseCase
 }
 
+// ErrExit is the exit error
 var ErrExit = errors.New("exit")
 
+// New creates a new CLI
 func New(logic *usecase.UseCase) *CLI {
 	return &CLI{logic: logic}
-}
-
-func (c *CLI) Close() error {
-	// TODO: close connection
-	return nil
 }
 
 const (
@@ -39,6 +37,7 @@ const exit = "EXIT 🚪"
 const auth = "SIGN IN 👤"
 const reg = "SIGN UP 🆕"
 
+// Start starts the CLI
 func (c *CLI) Start(ctx context.Context) (err error) {
 	ctx, err = c.authenticate(ctx)
 	if err != nil {

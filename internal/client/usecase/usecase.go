@@ -13,16 +13,25 @@ import (
 	"secret-keeper/pkg/api/server"
 )
 
+// ErrUnavailable when service is unavailable
 var ErrUnavailable = errors.New("service unavailable")
+
+// ErrInvalidPassword when password is invalid
 var ErrInvalidPassword = errors.New("Wrong password or username!")
+
+// ErrUsernameExists when username exists
 var ErrUsernameExists = errors.New("username exists")
+
+// ErrSecretNotFound when secret not found
 var ErrSecretNotFound = errors.New("service not found")
 
+// UseCase is a client logic layer
 type UseCase struct {
 	cl     server.SecretKeeperClient
 	header *metadata.MD
 }
 
+// New creates a new UseCase
 func New(addr string, header *metadata.MD) (*UseCase, error) {
 	uc := &UseCase{header: header}
 	if err := uc.connect(addr); err != nil {
@@ -33,6 +42,7 @@ func New(addr string, header *metadata.MD) (*UseCase, error) {
 	return uc, nil
 }
 
+// GetSecret gets secret by key
 func (uc *UseCase) GetSecret(ctx context.Context, key string) (string, error) {
 	r, err := uc.cl.Get(ctx, &server.GetRequest{Key: key}, grpc.Header(uc.header))
 	if err != nil {
@@ -51,6 +61,7 @@ func (uc *UseCase) GetSecret(ctx context.Context, key string) (string, error) {
 	return r.Value, nil
 }
 
+// SetSecret sets secret by key
 func (uc *UseCase) SetSecret(ctx context.Context, key, value string) error {
 	_, err := uc.cl.Set(ctx, &server.SetRequest{Key: key, Value: value}, grpc.Header(uc.header))
 	if err != nil {
@@ -67,6 +78,7 @@ func (uc *UseCase) SetSecret(ctx context.Context, key, value string) error {
 	return nil
 }
 
+// DeleteSecret deletes secret by key
 func (uc *UseCase) DeleteSecret(ctx context.Context, key string) error {
 	_, err := uc.cl.Delete(ctx, &server.DeleteRequest{Key: key}, grpc.Header(uc.header))
 	if err != nil {
@@ -84,6 +96,7 @@ func (uc *UseCase) DeleteSecret(ctx context.Context, key string) error {
 	return nil
 }
 
+// GetAllNames gets all names of secrets
 func (uc *UseCase) GetAllNames(ctx context.Context) ([]string, error) {
 	getAllNames, err := uc.cl.GetAllNames(ctx, &server.GetAllNamesRequest{}, grpc.Header(uc.header))
 	if err != nil {
@@ -93,6 +106,7 @@ func (uc *UseCase) GetAllNames(ctx context.Context) ([]string, error) {
 	return getAllNames.Vars, nil
 }
 
+// Auth authenticates user
 func (uc *UseCase) Auth(ctx context.Context, username, password string) (context.Context, error) {
 	_, err := uc.cl.Auth(ctx, &server.AuthRequest{Username: username, Password: password}, grpc.Header(uc.header))
 	if err != nil {
@@ -129,6 +143,7 @@ func (uc *UseCase) addTokenToContext(ctx context.Context) (context.Context, erro
 	return ctx, nil
 }
 
+// Register registers user
 func (uc *UseCase) Register(ctx context.Context, username, password string) (context.Context, error) {
 	_, err := uc.cl.Register(ctx, &server.RegisterRequest{Username: username, Password: password}, grpc.Header(uc.header))
 	if err != nil {

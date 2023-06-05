@@ -10,6 +10,7 @@ import (
 	"secret-keeper/internal/server/storage"
 )
 
+// IUseCase interface for UseCase
 type IUseCase interface {
 	Get(ctx context.Context, key string) (string, error)
 	Set(ctx context.Context, key, value string) error
@@ -19,21 +20,25 @@ type IUseCase interface {
 	Delete(ctx context.Context, key string) error
 }
 
+// ErrInvalidToken is returned when token is invalid
 var ErrInvalidToken = errors.New("invalid token")
+
+// ErrInvalidPassword is returned when password is invalid
 var ErrInvalidPassword = errors.New("invalid password")
 
-type getOrCreateFromContext func(ctx context.Context) (bool, string, error)
-
+// UseCase logic layer
 type UseCase struct {
 	storage *storage.Storage
 }
 
+// New UseCase constructor
 func New(storage *storage.Storage) (*UseCase, error) {
 	return &UseCase{
 		storage: storage,
 	}, nil
 }
 
+// GetAllNames gets all names
 func (u *UseCase) GetAllNames(ctx context.Context) ([]string, error) {
 	username, err := u.getUsernameFromContext(ctx)
 	if err != nil {
@@ -43,6 +48,7 @@ func (u *UseCase) GetAllNames(ctx context.Context) ([]string, error) {
 	return u.storage.GetAllNames(ctx, username)
 }
 
+// Get gets value for key
 func (u *UseCase) Get(ctx context.Context, key string) (string, error) {
 	username, err := u.getUsernameFromContext(ctx)
 	if err != nil {
@@ -56,6 +62,7 @@ func (u *UseCase) Get(ctx context.Context, key string) (string, error) {
 	return val, nil
 }
 
+// Set sets value for key
 func (u *UseCase) Set(ctx context.Context, key, value string) error {
 	username, err := u.getUsernameFromContext(ctx)
 	if err != nil {
@@ -65,6 +72,7 @@ func (u *UseCase) Set(ctx context.Context, key, value string) error {
 	return u.storage.Set(ctx, username, key, value)
 }
 
+// Register registers user
 func (u *UseCase) Register(ctx context.Context, username string, password string) (string, error) {
 	ok, token, err := getOrCreateToken(ctx)
 	if err != nil {
@@ -86,6 +94,7 @@ func (u *UseCase) Register(ctx context.Context, username string, password string
 	return token, nil
 }
 
+// Auth authenticates user
 func (u *UseCase) Auth(ctx context.Context, username string, password string) (string, error) {
 	ok, token, err := getOrCreateToken(ctx)
 	if err != nil {
@@ -118,6 +127,7 @@ func (u *UseCase) Auth(ctx context.Context, username string, password string) (s
 	return token, nil
 }
 
+// Delete deletes value for key
 func (u *UseCase) Delete(ctx context.Context, key string) error {
 	username, err := u.getUsernameFromContext(ctx)
 	if err != nil {
