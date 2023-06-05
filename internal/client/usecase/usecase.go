@@ -68,12 +68,13 @@ func (uc *UseCase) SetSecret(ctx context.Context, key, value string) error {
 		st, ok := status.FromError(err)
 		if !ok {
 			return fmt.Errorf("failed to set: %w", err)
-		} else {
-			if st.Code() == codes.Unavailable {
-				return fmt.Errorf("failed to set: %w", ErrUnavailable)
-			}
-			return fmt.Errorf("failed to set: %w", err)
 		}
+
+		if st.Code() == codes.Unavailable {
+			return fmt.Errorf("failed to set: %w", ErrUnavailable)
+		}
+
+		return fmt.Errorf("failed to set: %w", err)
 	}
 	return nil
 }

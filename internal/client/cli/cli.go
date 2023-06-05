@@ -33,9 +33,26 @@ const (
 
 var minCharacters = 8
 
-const exit = "EXIT 🚪"
-const auth = "SIGN IN 👤"
-const reg = "SIGN UP 🆕"
+const (
+	exit = "EXIT 🚪"
+	auth = "SIGN IN 👤"
+	reg  = "SIGN UP 🆕"
+)
+
+const (
+	succeedAuth           = "Authenticated"
+	chooseAction          = "Choose"
+	noSecrets             = "No secrets"
+	keyFieldName          = "Key: "
+	keyFieldPlaceholder   = "name of your secret"
+	valueFieldName        = "Value: "
+	valueFieldPlaceholder = "your secret"
+	PassphraseFieldName   = "Passphrase: "
+	UserFieldName         = "Username: "
+	UserFieldPlaceholder  = "nickname"
+	NonUniqueUsername     = "Username already exists"
+	InvalidCredentials    = "Invalid username or password"
+)
 
 // Start starts the CLI
 func (c *CLI) Start(ctx context.Context) (err error) {
@@ -47,7 +64,7 @@ func (c *CLI) Start(ctx context.Context) (err error) {
 		return fmt.Errorf("failed to authenticate: %w", err)
 	}
 
-	fmt.Println("Authenticated")
+	fmt.Println(succeedAuth)
 
 	if err := c.operate(ctx); err != nil {
 		if err == ErrExit {
@@ -59,8 +76,12 @@ func (c *CLI) Start(ctx context.Context) (err error) {
 	return nil
 }
 
+func trimNewlines(s string) string {
+	return strings.Trim(s, "\n\r")
+}
+
 func (c *CLI) operate(ctx context.Context) error {
-	sp := selection.New("Choose", []string{
+	sp := selection.New(chooseAction, []string{
 		get,
 		set,
 		del,
@@ -78,7 +99,7 @@ func (c *CLI) operate(ctx context.Context) error {
 			return fmt.Errorf("failed to run prompt: %w", err)
 		}
 
-		choice = strings.Trim(choice, "\n\r")
+		choice = trimNewlines(choice)
 
 		switch choice {
 		case exit:
@@ -93,28 +114,28 @@ func (c *CLI) operate(ctx context.Context) error {
 				continue
 			}
 
-			secret, err := c.logic.GetSecret(ctx, strings.Trim(key, "\n\r"))
+			secret, err := c.logic.GetSecret(ctx, trimNewlines(key))
 			if err != nil {
 				fmt.Printf("Failed to get: %v\n", err)
 				continue
 			}
 			fmt.Printf("Secret: %s\n", secret)
 		case set:
-			keyInput := textinput.New("Key:")
-			keyInput.Placeholder = fmt.Sprintf("name of your secret")
+			keyInput := textinput.New(keyFieldName)
+			keyInput.Placeholder = keyFieldPlaceholder
 			key, err := keyInput.RunPrompt()
 			if err != nil {
 				return fmt.Errorf("failed to read password: %w", err)
 			}
 
-			valueInput := textinput.New("Value:")
-			valueInput.Placeholder = fmt.Sprintf("value of your secret")
+			valueInput := textinput.New(valueFieldName)
+			valueInput.Placeholder = valueFieldPlaceholder
 			value, err := valueInput.RunPrompt()
 			if err != nil {
 				return fmt.Errorf("failed to read password: %w", err)
 			}
 
-			if err = c.logic.SetSecret(ctx, strings.Trim(key, "\n\r"), strings.Trim(value, "\n\r")); err != nil {
+			if err = c.logic.SetSecret(ctx, trimNewlines(key), trimNewlines(value)); err != nil {
 				log.Println(err)
 			} else {
 				log.Print("OK\n")
@@ -129,7 +150,7 @@ func (c *CLI) operate(ctx context.Context) error {
 				continue
 			}
 
-			if err = c.logic.DeleteSecret(ctx, strings.Trim(key, "\n\r")); err != nil {
+			if err = c.logic.DeleteSecret(ctx, trimNewlines(key)); err != nil {
 				log.Println(err)
 			} else {
 				log.Printf("Deleted: %s", key)
@@ -148,9 +169,9 @@ func (c *CLI) getOneFromList(ctx context.Context) (string, bool, error) {
 	names = append(names, back)
 	names = append(names, keys...)
 
-	msg := "Choose secret"
+	msg := chooseAction
 	if len(names) == 1 {
-		msg = "No secrets"
+		msg = noSecrets
 	}
 
 	getAllInput := selection.New(msg, names)
@@ -161,7 +182,7 @@ func (c *CLI) getOneFromList(ctx context.Context) (string, bool, error) {
 		return "", false, fmt.Errorf("failed to run prompt: %w", err)
 	}
 
-	choice = strings.Trim(choice, "\n\r")
+	choice = trimNewlines(choice)
 
 	if choice == back {
 		return "", true, nil
@@ -170,13 +191,13 @@ func (c *CLI) getOneFromList(ctx context.Context) (string, bool, error) {
 }
 
 func (c *CLI) authenticate(ctx context.Context) (context.Context, error) {
-	authInput := selection.New("Choose", []string{
+	authInput := selection.New(chooseAction, []string{
 		auth,
 		reg,
 		exit})
 	authInput.PageSize = 3
 
-	passInput := textinput.New("Passphrase:")
+	passInput := textinput.New(PassphraseFieldName)
 	passInput.Placeholder = fmt.Sprintf("more than %d characters", minCharacters)
 	passInput.Validate = func(s string) error {
 		if len(s) < minCharacters {
@@ -187,8 +208,8 @@ func (c *CLI) authenticate(ctx context.Context) (context.Context, error) {
 	}
 	passInput.Hidden = true
 
-	usernameInput := textinput.New("Username:")
-	usernameInput.Placeholder = fmt.Sprintf("nickname")
+	usernameInput := textinput.New(UserFieldName)
+	usernameInput.Placeholder = UserFieldPlaceholder
 
 	for {
 
@@ -197,26 +218,26 @@ func (c *CLI) authenticate(ctx context.Context) (context.Context, error) {
 			return ctx, fmt.Errorf("failed to run prompt: %w", err)
 		}
 
-		cmd := strings.Trim(choice, "\n\r")
+		cmd := trimNewlines(choice)
 		switch cmd {
 		case auth:
 			username, err := usernameInput.RunPrompt()
 			if err != nil {
 				return ctx, fmt.Errorf("failed to read username: %w", err)
 			}
-			username = strings.Trim(username, "\n\r")
+			username = trimNewlines(username)
 
 			password, err := passInput.RunPrompt()
 			if err != nil {
 				return ctx, fmt.Errorf("failed to read password: %w", err)
 			}
 
-			password = strings.Trim(password, "\n\r")
+			password = trimNewlines(password)
 
 			ctx, err = c.logic.Auth(ctx, username, password)
 			if err != nil {
 				if errors.Is(err, usecase.ErrInvalidPassword) {
-					fmt.Println("Invalid password or username")
+					fmt.Println(InvalidCredentials)
 					continue
 				}
 				return ctx, fmt.Errorf("failed to auth: %w", err)
@@ -228,18 +249,18 @@ func (c *CLI) authenticate(ctx context.Context) (context.Context, error) {
 			if err != nil {
 				return ctx, fmt.Errorf("failed to read username: %w", err)
 			}
-			username = strings.Trim(username, "\n\r")
+			username = trimNewlines(username)
 
 			password, err := passInput.RunPrompt()
 			if err != nil {
 				return ctx, fmt.Errorf("failed to read password: %w", err)
 			}
-			password = strings.Trim(password, "\n\r")
+			password = trimNewlines(password)
 
 			ctx, err = c.logic.Register(ctx, username, password)
 			if err != nil {
 				if errors.Is(err, usecase.ErrUsernameExists) {
-					fmt.Println("Username already exists")
+					fmt.Println(NonUniqueUsername)
 					continue
 				}
 				return ctx, fmt.Errorf("failed to register: %w", err)
