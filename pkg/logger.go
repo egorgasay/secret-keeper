@@ -4,8 +4,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// ILogger on case of changing logger in the future
-type ILogger interface {
+// Logger on case of changing logger in the future
+type Logger interface {
 	Info(msg string)
 	Fatal(msg string)
 	Debug(msg string)
@@ -16,7 +16,7 @@ type logger struct {
 	l *zap.Logger
 }
 
-func New(lg *zap.Logger) ILogger {
+func New(lg *zap.Logger) Logger {
 	return &logger{l: lg}
 }
 

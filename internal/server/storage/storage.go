@@ -12,7 +12,7 @@ import (
 type Storage struct {
 	users  *itisadb.Index
 	tokens *itisadb.Index
-	logger pkg.ILogger
+	logger pkg.Logger
 }
 
 // Config for storage
